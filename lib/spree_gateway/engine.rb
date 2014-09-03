@@ -33,6 +33,7 @@ module SpreeGateway
         app.config.spree.payment_methods << Spree::Gateway::Maxipago
         app.config.spree.payment_methods << Spree::Gateway::Migs
         app.config.spree.payment_methods << Spree::Gateway::SpreedlyCoreGateway
+        app.config.spree.payment_methods << Spree::Gateway::Realex
     end
   end
 end
