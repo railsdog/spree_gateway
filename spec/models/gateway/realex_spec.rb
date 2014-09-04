@@ -6,7 +6,7 @@ describe Spree::Gateway::Realex do
   before do
     Spree::Gateway.update_all(active: false)
     Spree::Config[:currency] = "GBP"
-    @gateway = Spree::Gateway::Realex.create!(name: 'Realex Gateway', environment: 'sandbox', active: true)
+    @gateway = Spree::Gateway::Realex.create!(name: 'Realex Gateway', environment: 'test', active: true)
     @gateway.preferences = {
         login: 'X',
         password: 'Y'
@@ -27,11 +27,7 @@ describe Spree::Gateway::Realex do
     )
 
     order = create(:order_with_totals, bill_address: address, ship_address: address)
-
-    #random order id to avoid duplicate transactions
-    timestamp = Time.now.strftime '%Y%m%d%H%M%S'
-    order_id = "#{timestamp}#{rand 1000}"
-    order.update_attribute('id', order_id)
+    order.update_attribute('id', 1234567)
     order.update!
 
     # https://github.com/Shopify/active_merchant/blob/master/lib/active_merchant/billing/gateways/realex.rb#L239
@@ -62,19 +58,21 @@ describe Spree::Gateway::Realex do
 
   describe 'authorize' do
     it 'return a success response with an authorization code' do
-      result = @gateway.authorize(500, @credit_card, @options)
-
-      expect(result.success?).to be_truthy
+      expect(@gateway.provider).to receive(:ssl_post).and_return(successful_purchase_response)
+      response = @gateway.authorize(500, @credit_card, @options)
+      assert_instance_of ActiveMerchant::Billing::Response, response
+      expect(response.success?).to be_truthy
+      expect(response.test?).to be_truthy
       auth_code = [@options[:order_id],
-                   result.params['pasref'],
-                   result.params['authcode']].join(';')
-      expect(result.authorization).to match auth_code
-      expect(result.message).to eq 'Successful'
+                   response.params['pasref'],
+                   response.params['authcode']].join(';')
+      expect(response.authorization).to match auth_code
     end
 
     shared_examples 'a valid credit card' do
       it 'work through the spree payment interface' do
         Spree::Config.set auto_capture: false
+        expect(@gateway.provider).to receive(:ssl_post).and_return(successful_purchase_response)
         expect(@payment.log_entries.size).to eq(0)
 
         @payment.process!
@@ -138,22 +136,25 @@ describe Spree::Gateway::Realex do
 
   context 'purchase' do
     it 'return a success response with an authorization code' do
-      result =  @gateway.purchase(500, @credit_card, @options)
-      expect(result.success?).to be_truthy
+      expect(@gateway.provider).to receive(:ssl_post).and_return(successful_purchase_response)
+      response = @gateway.purchase(500, @credit_card, @options)
+      expect(response.success?).to be_truthy
       auth_code = [@options[:order_id],
-                   result.params['pasref'],
-                   result.params['authcode']].join(';')
-      expect(result.authorization).to match auth_code
+                   response.params['pasref'],
+                   response.params['authcode']].join(';')
+      expect(response.authorization).to match auth_code
     end
   end
 
   context 'void' do
     before do
       Spree::Config.set(auto_capture: true)
+      expect(@gateway.provider).to receive(:ssl_post).twice.and_return(successful_purchase_response)
     end
 
     it 'work through the spree credit_card / payment interface' do
       expect(@payment.log_entries.size).to eq(0)
+
       @payment.process!
       expect(@payment.log_entries.size).to eq(1)
       expect(@payment.state).to eq 'completed'
@@ -162,4 +163,36 @@ describe Spree::Gateway::Realex do
       expect(@payment.state).to eq 'void'
     end
   end
+
+  private
+
+  def successful_purchase_response
+    <<-RESPONSE
+      <response timestamp='20010427043422'>
+        <merchantid>your merchant id</merchantid>
+        <account>account to use</account>
+        <orderid>1234567</orderid>
+        <authcode>authcode received</authcode>
+        <result>00</result>
+        <message>[ test system ] message returned from system</message>
+        <pasref> realex payments reference</pasref>
+        <cvnresult>M</cvnresult>
+        <batchid>batch id for this transaction (if any)</batchid>
+        <cardissuer>
+          <bank>Issuing Bank Name</bank>
+          <country>Issuing Bank Country</country>
+          <countrycode>Issuing Bank Country Code</countrycode>
+          <region>Issuing Bank Region</region>
+        </cardissuer>
+        <tss>
+          <result>89</result>
+          <check id="1000">9</check>
+          <check id="1001">9</check>
+        </tss>
+        <sha1hash>7384ae67....ac7d7d</sha1hash>
+        <md5hash>34e7....a77d</md5hash>
+      </response>"
+    RESPONSE
+  end
+
 end
