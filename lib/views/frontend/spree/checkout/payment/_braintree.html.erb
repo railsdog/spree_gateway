@@ -1,0 +1,37 @@
+<script src="https://js.braintreegateway.com/v2/braintree.js"></script>
+
+<div id="dropin-container"></div>
+
+<% @provider ||= payment_method.provider %>
+
+<script>
+Spree.braintreePaymentMethod = $('#payment_method_' + <%= payment_method.id %>);
+paymentMethodId = Spree.braintreePaymentMethod.prop('id').split("_")[2];
+braintree.setup(
+  "<%= Braintree::ClientToken.generate %>",
+  "dropin", {
+    container: "dropin-container",
+    form: "checkout_form_payment",
+    paypal: {
+      singleUse: true,
+      amount: <%= @order.total.to_f %>,
+      currency: "<%= @order.currency %>"
+    },
+    onPaymentMethodReceived: function (obj) {
+      debugger
+      card_details = obj.details
+      Spree.braintreePaymentMethod.append("<input type='hidden' class='braintreeToken' name='payment_source[" + paymentMethodId + "][cc_type]' value='" + card_details.cardType.toLowerCase() + "'/>");
+      Spree.braintreePaymentMethod.append("<input type='hidden' class='braintreeToken' name='payment_source[" + paymentMethodId + "][gateway_payment_profile_id]' value='" + obj.nonce + "'/>");
+      Spree.braintreePaymentMethod.append("<input type='hidden' class='braintreeToken' name='payment_source[" + paymentMethodId + "][last_digits]' value='" + card_details.lastTwo + "'/>");
+      // Spree.braintreePaymentMethod.append("<input type='hidden' class='braintreeToken' name='payment_source[" + paymentMethodId + "][month]' value='" + response.card.exp_month + "'/>");
+      // Spree.braintreePaymentMethod.append("<input type='hidden' class='braintreeToken' name='payment_source[" + paymentMethodId + "][year]' value='" + response.card.exp_year + "'/>");
+    // Do some logic in here.
+    // When you're ready to submit the form:
+    // myForm.submit();
+    debugger
+    Spree.braintreePaymentMethod.parents("form").trigger('submit');
+  }, onError: function(obj){
+    debugger
+  }
+  });
+</script>

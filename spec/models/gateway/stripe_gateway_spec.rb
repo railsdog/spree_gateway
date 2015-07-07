@@ -153,7 +153,7 @@ describe Spree::Gateway::StripeGateway do
 
   context 'capture with payment class' do
     let(:gateway) do
-      gateway = described_class.new(:environment => 'test', :active => true)
+      gateway = described_class.new(active: true)
       gateway.set_preference :secret_key, secret_key
       gateway.stub(:options_for_purchase_or_auth).and_return(['money','cc','opts'])
       gateway.stub(:provider).and_return provider
@@ -164,8 +164,9 @@ describe Spree::Gateway::StripeGateway do
     let(:order) { Spree::Order.create }
 
     let(:card) do
-      mock_model(Spree::CreditCard, :gateway_customer_profile_id => 'cus_abcde',
-                                    :imported => false)
+      # mock_model(Spree::CreditCard, :gateway_customer_profile_id => 'cus_abcde',
+                                    # :imported => false)
+      create :credit_card, gateway_customer_profile_id: 'cus_abcde', imported: false
     end
 
     let(:payment) do
