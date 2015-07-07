@@ -1,0 +1,20 @@
+<div class="well clearfix">
+  <div id="dropin-container"></div>
+</div>
+<script src="https://js.braintreegateway.com/v2/braintree.js"></script>
+
+<% @provider ||= payment_method.provider %>
+
+<script>
+braintree.setup(
+  "<%= Braintree::ClientToken.generate %>",
+  "dropin", {
+    container: "dropin-container",
+    form: "checkout_form_payment",
+    paypal: {
+      singleUse: true,
+      amount: <%= @order.total.to_f %>,
+      currency: "<%= @order.currency %>"
+    }
+  });
+</script>
